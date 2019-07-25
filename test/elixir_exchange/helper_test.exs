@@ -15,7 +15,7 @@ defmodule HelperTest do
       %{price: 90.15, volume: 1.305},
       %{price: 90.394, volume: 3.445}
     ]
-    ordered_list = ElixirExchange.Helper.sort_price_ascending(mock_list)
+    ordered_list = sort_price_ascending(mock_list)
     assert ordered_list == expected_list
   end
 
@@ -30,21 +30,21 @@ defmodule HelperTest do
       %{price: 90.15, volume: 1.305},
       %{price: 89.394, volume: 4.3}
     ]
-    ordered_list = ElixirExchange.Helper.sort_price_descending(mock_list)
+    ordered_list = sort_price_descending(mock_list)
     assert ordered_list == expected_list
   end
 
   test "Passing empty list to sort_price_ascending should return empty list" do
     mock_list = []
     expected_list = []
-    ordered_list = ElixirExchange.Helper.sort_price_ascending(mock_list)
+    ordered_list = sort_price_ascending(mock_list)
     assert ordered_list == expected_list
   end
 
   test "Passing empty list to sort_price_descending should return empty list" do
     mock_list = []
     expected_list = []
-    ordered_list = ElixirExchange.Helper.sort_price_descending(mock_list)
+    ordered_list = sort_price_descending(mock_list)
     assert ordered_list == expected_list
   end
 end

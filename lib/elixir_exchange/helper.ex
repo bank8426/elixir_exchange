@@ -50,6 +50,6 @@ defmodule ElixirExchange.Helper do
 
   #get price from order
   defp price(order) do
-    order[:price]
+    order["price"]
   end
 end

@@ -37,8 +37,18 @@ defmodule ElixirExchange.Exchange do
   defp loop_orders([head | tail], output) do
     #seperate command and order data
     {order_type, new_order} = Map.pop(head, "command")
-    #concat order data to their own list
-    new_order_list = output[order_type] ++ [new_order] |> sort_by_order_type(order_type)
+
+    #check order with same price in the current list
+    new_order_list = case Enum.find_index(output[order_type], &(&1["price"] == new_order["price"])) do
+      #If not found, concat order data to their own list
+      nil -> output[order_type] ++ [new_order] |> sort_by_order_type(order_type)
+      #If found, sum order amount with same price
+      index -> List.replace_at(
+        output[order_type],
+        index,
+        %{ "price"=> new_order["price"] ,"amount"=> Enum.at(output[order_type],index)["amount"] + new_order["amount"] }
+      )
+    end
     #update output
     output = Map.put(output, order_type, new_order_list)
     #continue loop

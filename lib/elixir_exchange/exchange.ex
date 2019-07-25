@@ -4,20 +4,19 @@ defmodule ElixirExchange.Exchange do
   """
 
   @doc """
-  read input file and calculate order book results
+  read input file and calculate order book results,
+  then write to output file
   ## Parameters
     - file: String that represents the path to json file.
   ## Examples
     iex> ElixirExchange.Exchange.exchange("priv/input_1.json")
-    %{
-      buy: [%{price: 90.394, volume: 3.445}],
-      sell: [%{price: 100.003, volume: 2.4}]
-    }
+    :ok
   """
   def exchange(file) do
     ElixirExchange.JSONReader.get_json(file)
     |>get_orders()
     |>calculate()
+    |>ElixirExchange.JSONWriter.write_json_output()
   end
 
   #This function will return "orders" part of Maps

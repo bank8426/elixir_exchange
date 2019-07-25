@@ -23,3 +23,5 @@ erl_crash.dump
 elixir_exchange-*.tar
 
 .elixir_ls/
+
+output.json

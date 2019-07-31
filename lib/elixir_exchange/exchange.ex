@@ -37,7 +37,7 @@ defmodule ElixirExchange.Exchange do
   defp loop_orders([head | tail], output) do
     #seperate command and order data
     {order_type, new_order} = Map.pop(head, "command")
-
+    new_order = %{ "price" => new_order["price"] , "volume" => new_order["amount"]}
     #check order match anything in order book
     match_result = matching(output, order_type, new_order["price"])
 
@@ -65,8 +65,8 @@ defmodule ElixirExchange.Exchange do
   end
   #If found same, sum order amount with same price
   defp update_order_book({:match_same, index} ,output ,order_type ,new_order) do
-    current_order_amount = Enum.at(output[order_type],index)["amount"] |> Decimal.from_float()
-    add_order_amount = new_order["amount"] |> Decimal.from_float()
+    current_order_amount = Enum.at(output[order_type],index)["volume"] |> Decimal.from_float()
+    add_order_amount = new_order["volume"] |> Decimal.from_float()
     total_order_amount = Decimal.add(current_order_amount, add_order_amount) |> Decimal.to_float()
     {:ok,
       Map.put(
@@ -75,7 +75,7 @@ defmodule ElixirExchange.Exchange do
         List.replace_at(
           output[order_type],
           index,
-          %{ "price"=> new_order["price"] ,"amount"=> total_order_amount }
+          %{ "price"=> new_order["price"] ,"volume"=> total_order_amount }
         )
       )
     }
@@ -83,8 +83,8 @@ defmodule ElixirExchange.Exchange do
   #If found exchange match, calculate new amount
   defp update_order_book({:match_exchange, index} ,output ,order_type ,new_order) do
     opposite_order_type = get_opposite_order_type(order_type)
-    current_order_amount = Enum.at(output[opposite_order_type],index)["amount"] |> Decimal.from_float()
-    exchange_order_amount = new_order["amount"] |> Decimal.from_float()
+    current_order_amount = Enum.at(output[opposite_order_type],index)["volume"] |> Decimal.from_float()
+    exchange_order_amount = new_order["volume"] |> Decimal.from_float()
     remaining_order_amount = Decimal.sub(current_order_amount, exchange_order_amount) |> Decimal.to_float()
     case remaining_order_amount do
       #remaining amount in order book
@@ -95,7 +95,7 @@ defmodule ElixirExchange.Exchange do
           List.replace_at(
             output[opposite_order_type],
             index,
-            %{ "price"=> new_order["price"] ,"amount"=> value }
+            %{ "price"=> new_order["price"] ,"volume"=> value }
           )
         )
       }

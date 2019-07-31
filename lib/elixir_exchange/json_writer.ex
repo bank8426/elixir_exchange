@@ -11,6 +11,6 @@ defmodule ElixirExchange.JSONWriter do
   :ok
   """
   def write_json_output(output) do
-    File.write("output.json",Poison.encode!(output), [:binary])
+    File.write("output.json",Jason.encode!(output,[pretty: true]), [:binary])
   end
 end

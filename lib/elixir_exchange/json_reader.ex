@@ -12,7 +12,7 @@ defmodule ElixirExchange.JSONReader do
   """
   def get_json(path) do
     with {:ok, body} <- File.read(path),
-         {:ok, json} <- Poison.decode(body)
+         {:ok, json} <- Jason.decode(body)
     do
       json
     else

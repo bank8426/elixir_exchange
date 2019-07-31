@@ -21,7 +21,7 @@ defmodule ElixirExchange.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:poison, "~> 4.0"},
+      {:jason, "~> 1.1"},
       {:mock, "~> 0.3.3"},
       {:decimal, "~> 1.0"}
       # {:dep_from_hexpm, "~> 0.3.0"},

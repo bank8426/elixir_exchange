@@ -52,4 +52,36 @@ defmodule ElixirExchange.Helper do
   defp price(order) do
     order["price"]
   end
+
+  @doc """
+  Perform addition between 2 float value
+  ## Parameters
+    - value1: float
+    - value2: float
+  ## Examples
+    iex> float_add(0.00000001 , 0.00000002)
+    0.00000003
+  """
+  def float_add(value1 , value2) do
+    decimal_value1 = Decimal.from_float(value1)
+    decimal_value2 = Decimal.from_float(value2)
+    Decimal.add(decimal_value1, decimal_value2)
+    |> Decimal.to_float()
+  end
+
+  @doc """
+  Perform subtract between 2 float value
+  ## Parameters
+    - value1: float
+    - value2: float
+  ## Examples
+    iex> float_sub(0.00000002 , 0.00000001)
+    0.00000001
+  """
+  def float_sub(value1 , value2) do
+    decimal_value1 = Decimal.from_float(value1)
+    decimal_value2 = Decimal.from_float(value2)
+    Decimal.sub(decimal_value1, decimal_value2)
+    |> Decimal.to_float()
+  end
 end

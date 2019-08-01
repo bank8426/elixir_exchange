@@ -1,5 +1,8 @@
 defmodule ElixirExchange.Exchange do
-  import ElixirExchange.Helper, only: [sort_price_ascending: 1, sort_price_descending: 1]
+  import ElixirExchange.Helper, only: [sort_price_ascending: 1, sort_price_descending: 1, float_add: 2, float_sub: 2]
+  import ElixirExchange.JSONReader, only: [get_json: 1]
+  import ElixirExchange.JSONWriter, only: [write_json_output: 1]
+
   @moduledoc """
   Provides a function `exchange/1` to read input file and calculate order book results
   """
@@ -14,133 +17,101 @@ defmodule ElixirExchange.Exchange do
     :ok
   """
   def exchange(file) do
-    ElixirExchange.JSONReader.get_json(file)
+    file
+    |>get_json()
     |>get_orders()
     |>loop_orders()
-    |>ElixirExchange.JSONWriter.write_json_output()
+    |>write_json_output()
   end
 
   #Return "orders" part of Maps
-  defp get_orders(json) do
-    json["orders"]
-  end
+  defp get_orders(json), do: json["orders"]
 
-  #Initial output with Map of "buy" and "sell"
+  #Initial order book with Map of "buy" and "sell"
   #Then loop throught all orders
-  defp loop_orders(orders) do
-    loop_orders(orders, %{"buy"=> [] ,"sell"=> []})
-  end
+  defp loop_orders(orders), do: loop_orders(orders, %{"buy"=> [] ,"sell"=> []})
 
   #Recursive case,
   #Seperate head and tail part of the order list
-  #Put price and volume of head's order into output map follow the order type.
-  defp loop_orders([head | tail], output) do
+  #Put price and volume of head's order into order book map follow the order type.
+  defp loop_orders([head | tail], order_book) do
     #seperate command and order data
     {order_type, new_order} = Map.pop(head, "command")
     new_order = %{ "price" => new_order["price"] , "volume" => new_order["amount"]}
+
+    order_book
     #check order match anything in order book
-    match_result = matching(output, order_type, new_order["price"])
-
-    #update output follow match result
+    |>matching_order(order_type, new_order["price"])
+    #update order book follow match result
+    |>update_order_book(order_book, order_type, new_order)
     #then continue loop
-    case update_order_book(match_result, output, order_type, new_order) do
-      {:ok, output} -> loop_orders( tail , output)
-      {:partial, output, partial_order} -> loop_orders( [partial_order | tail] , output)
+    |>case do
+      {:ok, order_book} -> loop_orders( tail , order_book)
+      {:partial, order_book, partial_order} -> loop_orders( [partial_order | tail] , order_book)
     end
   end
 
-  #Base case, will return output when no orders left
-  defp loop_orders([] , output) ,do: output
-
-  #update order book
-  #If not found, concat order data to their own list
-  defp update_order_book({:nomatch} ,output ,order_type ,new_order) do
-    {:ok,
-      Map.put(
-        output,
-        order_type,
-        output[order_type] ++ [new_order] |> sort_by_order_type(order_type)
-      )
-    }
-  end
-  #If found same, sum order amount with same price
-  defp update_order_book({:match_same, index} ,output ,order_type ,new_order) do
-    current_order_amount = Enum.at(output[order_type],index)["volume"] |> Decimal.from_float()
-    add_order_amount = new_order["volume"] |> Decimal.from_float()
-    total_order_amount = Decimal.add(current_order_amount, add_order_amount) |> Decimal.to_float()
-    {:ok,
-      Map.put(
-        output,
-        order_type,
-        List.replace_at(
-          output[order_type],
-          index,
-          %{ "price"=> new_order["price"] ,"volume"=> total_order_amount }
-        )
-      )
-    }
-  end
-  #If found exchange match, calculate new amount
-  defp update_order_book({:match_exchange, index} ,output ,order_type ,new_order) do
-    opposite_order_type = get_opposite_order_type(order_type)
-    current_order_amount = Enum.at(output[opposite_order_type],index)["volume"] |> Decimal.from_float()
-    exchange_order_amount = new_order["volume"] |> Decimal.from_float()
-    remaining_order_amount = Decimal.sub(current_order_amount, exchange_order_amount) |> Decimal.to_float()
-    case remaining_order_amount do
-      #remaining amount in order book
-      value when value > 0 -> {:ok,
-          Map.put(
-          output,
-          opposite_order_type,
-          List.replace_at(
-            output[opposite_order_type],
-            index,
-            %{ "price"=> new_order["price"] ,"volume"=> value }
-          )
-        )
-      }
-      #remaining amount in order,update new order book and return partial order
-      value when value < 0 -> {:partial,
-        Map.put(
-          output,
-          opposite_order_type,
-          List.delete_at(
-            output[opposite_order_type],
-            index
-          )
-        ),
-        %{"command"=> order_type, "price"=> new_order["price"], "amount"=> abs(value)}
-      }
-      #equal
-      value when value == 0 -> {:ok,
-          Map.put(
-          output,
-          opposite_order_type,
-          List.delete_at(
-            output[opposite_order_type],
-            index
-          )
-        )
-      }
-    end
-  end
+  #Base case, will return order book when no orders left
+  defp loop_orders([] , order_book) ,do: order_book
 
   #Return tuple indicate matching status
   #{:match_exchange, index} when found order in exchange match
   #{:match_same, index} when found same order type in current order book
   #{:nomatch} when not match with anything
-  defp matching(output, order_type, target_price) do
-    opposite_order_type = get_opposite_order_type(order_type)
-    #find match price in opposite site
-    found_exchange_index = find_match_exchange_by_price(output[opposite_order_type], target_price,order_type)
-    found_same_order_index = find_order_by_price(output[order_type], target_price)
+  defp matching_order(order_book, order_type, target_price) do
+    #find match price in opposite side
+    found_exchange_index = get_opposite_order_list(order_book, order_type) |> find_match_exchange_by_price(target_price,order_type)
+    #find match price in same side
+    found_same_order_index = find_order_by_price(order_book[order_type], target_price)
 
-    #find exchange match
+    #return tuple of atom and index
     cond do
       found_exchange_index != nil -> {:match_exchange, found_exchange_index}
       found_same_order_index != nil -> {:match_same, found_same_order_index}
       true -> {:nomatch}
     end
+  end
+
+  #update order book
+  #If not found, concat order data to their own list
+  defp update_order_book({:nomatch} ,order_book ,order_type ,new_order) do
+    updated_list = order_book[order_type] ++ [new_order] |> sort_by_order_type(order_type)
+    {:ok, Map.put(order_book, order_type, updated_list)}
+  end
+  #If found same, sum order amount with same price
+  defp update_order_book({:match_same, index} ,order_book ,order_type ,new_order) do
+    current_order_amount = Enum.at(order_book[order_type],index)["volume"]
+    total_order_amount = float_add(current_order_amount, new_order["volume"])
+    updated_list = List.replace_at(order_book[order_type], index, %{"price"=> new_order["price"] ,"volume"=> total_order_amount})
+    {:ok, Map.put(order_book, order_type, updated_list)}
+  end
+  #If found exchange match, calculate new amount
+  defp update_order_book({:match_exchange, index} ,order_book ,order_type ,new_order) do
+    opposite_order_type = get_opposite_order_type(order_type)
+    current_order = Enum.at(order_book[opposite_order_type],index)
+    remaining_order_amount = float_sub(current_order["volume"], new_order["volume"] )
+    case remaining_order_amount do
+      #remaining amount in order book
+      value when value > 0 ->
+        updated_list = List.replace_at(order_book[opposite_order_type], index, %{ "price"=> new_order["price"] ,"volume"=> value })
+        {:ok, Map.put(order_book, opposite_order_type, updated_list)}
+      #remaining amount in order,update new order book and return partial order
+      value when value < 0 ->
+        updated_list = List.delete_at(order_book[opposite_order_type], index)
+        {:partial,
+        Map.put(order_book, opposite_order_type, updated_list),
+        %{"command"=> order_type, "price"=> new_order["price"], "amount"=> abs(value)}
+      }
+      #equal
+      value when value == 0 ->
+        updated_list = List.delete_at(order_book[opposite_order_type],index)
+        {:ok, Map.put(order_book, opposite_order_type, updated_list)}
+    end
+  end
+
+  defp get_opposite_order_list(order_book, order_type) do
+    opposite_order_type = get_opposite_order_type(order_type)
+    order_book[opposite_order_type]
   end
 
   #return opposite order type from the input

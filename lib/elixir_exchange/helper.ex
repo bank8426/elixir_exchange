@@ -10,15 +10,15 @@ defmodule ElixirExchange.Helper do
     - list: list of unsorted orders
   ## Examples
     iex> data = [
-    ...>%{price: 90.394, volume: 3.445},
-    ...>%{price: 89.394, volume: 4.3},
-    ...>%{price: 90.15, volume: 1.305}
+    ...>%{"price" => 90.394, "volume" => 3.445},
+    ...>%{"price" => 89.394, "volume" => 4.3},
+    ...>%{"price" => 90.15, "volume" => 1.305}
     ...>]
     iex>ElixirExchange.Helper.sort_price_ascending(data)
     [
-      %{price: 89.394, volume: 4.3},
-      %{price: 90.15, volume: 1.305},
-      %{price: 90.394, volume: 3.445}
+      %{"price" => 89.394, "volume" => 4.3},
+      %{"price" => 90.15, "volume" => 1.305},
+      %{"price" => 90.394, "volume" => 3.445}
     ]
   """
   def sort_price_ascending(list) do
@@ -32,15 +32,15 @@ defmodule ElixirExchange.Helper do
     - list: list of unsorted orders
   ## Examples
     iex> data = [
-    ...> %{price: 90.394, volume: 3.445},
-    ...> %{price: 89.394, volume: 4.3},
-    ...> %{price: 90.15, volume: 1.305}
+    ...> %{"price" => 90.394, "volume" => 3.445},
+    ...> %{"price" => 89.394, "volume" => 4.3},
+    ...> %{"price" => 90.15, "volume" => 1.305}
     ...> ]
     iex>ElixirExchange.Helper.sort_price_descending(data)
     [
-      %{price: 90.394, volume: 3.445},
-      %{price: 90.15, volume: 1.305},
-      %{price: 89.394, volume: 4.3}
+      %{"price" => 90.394, "volume" => 3.445},
+      %{"price" => 90.15, "volume" => 1.305},
+      %{"price" => 89.394, "volume" => 4.3}
     ]
   """
   def sort_price_descending(list) do

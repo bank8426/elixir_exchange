@@ -1,5 +1,10 @@
 defmodule ElixirExchange.Exchange do
-  import ElixirExchange.Helper, only: [sort_price_ascending: 1, sort_price_descending: 1, float_add: 2, float_sub: 2]
+  import ElixirExchange.Helper, only: [
+    sort_price_ascending: 1,
+    sort_price_descending: 1,
+    float_add: 2,
+    float_sub: 2
+  ]
   import ElixirExchange.JSONReader, only: [get_json: 1]
   import ElixirExchange.JSONWriter, only: [write_json_output: 1]
 
@@ -30,7 +35,8 @@ defmodule ElixirExchange.Exchange do
   #Initial order book with Map of "buy" and "sell"
   #Then loop throught all orders
   def loop_orders(orders), do: loop_orders(orders, %{"buy"=> [] ,"sell"=> []})
-
+  #Base case, will return order book when no orders left
+  def loop_orders([] , order_book), do: order_book
   #Recursive case,
   #Seperate head and tail part of the order list
   #Put price and volume of head's order into order book map follow the order type.
@@ -48,8 +54,7 @@ defmodule ElixirExchange.Exchange do
     end
   end
 
-  #Base case, will return order book when no orders left
-  def loop_orders([] , order_book) ,do: order_book
+
 
   #Check is order match anything in order book
   #then, Return tuple indicate matching status
@@ -62,8 +67,7 @@ defmodule ElixirExchange.Exchange do
                            |>get_opposite_order_list(order_type)
                            |>find_match_exchange_by_price(target_price,order_type)
     #find match price in same side
-    found_same_order_index = order_book[order_type]
-                             |> find_order_by_price(target_price)
+    found_same_order_index = find_order_by_price(order_book[order_type], target_price)
 
     #return tuple of atom and index
     cond do
@@ -76,15 +80,23 @@ defmodule ElixirExchange.Exchange do
   #Update order book follow match result
   #If not found, concat order data to their own list
   defp update_order_book({:nomatch} ,order_book ,order_type ,new_order) do
-    updated_list = order_book[order_type] ++ [new_order] |> sort_by_order_type(order_type)
-    {:ok, Map.put(order_book, order_type, updated_list)}
+    concat_list = order_book[order_type] ++ [new_order]
+    updated_list = sort_by_order_type(concat_list , order_type)
+    updated_order_book = Map.put(order_book, order_type, updated_list)
+
+    {:ok, updated_order_book}
   end
   #If found same, sum order amount with same price
   defp update_order_book({:match_same, index} ,order_book ,order_type ,new_order) do
-    current_order_amount = get_order_volume_by_index(order_book[order_type], index)
-    total_order_amount = float_add(current_order_amount, new_order["volume"])
-    updated_list = List.replace_at(order_book[order_type], index, %{"price"=> new_order["price"] ,"volume"=> total_order_amount})
-    {:ok, Map.put(order_book, order_type, updated_list)}
+    total_order_amount =
+      order_book[order_type]
+      |> get_order_volume_by_index(index)
+      |> float_add(new_order["volume"])
+    updated_order = %{"price"=> new_order["price"] ,"volume"=> total_order_amount}
+    updated_list = List.replace_at(order_book[order_type], index, updated_order)
+    updated_order_book = Map.put(order_book, order_type, updated_list)
+
+    {:ok, updated_order_book}
   end
   #If found exchange match, calculate new amount
   defp update_order_book({:match_exchange, index} ,order_book ,order_type ,new_order) do
@@ -93,57 +105,61 @@ defmodule ElixirExchange.Exchange do
     current_order_amount = get_order_volume_by_index(opposite_order_list, index)
     current_order_price = get_order_price_by_index(opposite_order_list, index)
     remaining_order_amount = float_sub(current_order_amount, new_order["volume"] )
+
     case remaining_order_amount do
       #remaining amount in order book, should update amount with the current price in order book
       value when value > 0 ->
-        updated_list = List.replace_at(opposite_order_list, index, %{ "price"=> current_order_price ,"volume"=> value })
-        {:ok, Map.put(order_book, opposite_order_type, updated_list)}
+        updated_order = %{ "price"=> current_order_price ,"volume"=> value }
+        updated_list = List.replace_at(opposite_order_list, index, updated_order)
+        updated_order_book = Map.put(order_book, opposite_order_type, updated_list)
+
+        {:ok, updated_order_book}
+
       #remaining amount in order,update new order book and return partial order
       value when value < 0 ->
         updated_list = List.delete_at(opposite_order_list, index)
-        {:partial,
-        Map.put(order_book, opposite_order_type, updated_list),
-        %{"command"=> order_type, "price"=> new_order["price"], "amount"=> abs(value)}
-      }
-      #equal
+        partial_order = %{"command"=> order_type, "price"=> new_order["price"], "amount"=> abs(value)}
+        updated_order_book = Map.put(order_book, opposite_order_type, updated_list)
+
+        {:partial, updated_order_book, partial_order}
+
+      #no remaining amount will remove that match order out
       value when value == 0 ->
         updated_list = List.delete_at(opposite_order_list,index)
-        {:ok, Map.put(order_book, opposite_order_type, updated_list)}
+        updated_order_book = Map.put(order_book, opposite_order_type, updated_list)
+
+        {:ok, updated_order_book}
     end
   end
 
   #Return opposite order list
   defp get_opposite_order_list(order_book, order_type) do
     opposite_order_type = get_opposite_order_type(order_type)
+
     order_book[opposite_order_type]
   end
 
   #Return return volume of order from order list by index
-  defp get_order_volume_by_index(list, index) do
-    Enum.at(list,index)["volume"]
-  end
+  defp get_order_volume_by_index(list, index), do: Enum.at(list,index)["volume"]
 
   #Return return volume of order from order list by index
-  defp get_order_price_by_index(list, index) do
-    Enum.at(list,index)["price"]
-  end
+  defp get_order_price_by_index(list, index), do: Enum.at(list,index)["price"]
 
   #Return opposite order type from the input
   defp get_opposite_order_type("buy"), do: "sell"
   defp get_opposite_order_type("sell"), do: "buy"
 
   #Return index of order in list with the same price
-  defp find_order_by_price(list, target_price) do
-    Enum.find_index(list, &(&1["price"] == target_price))
-  end
+  defp find_order_by_price(list, target_price),
+    do: Enum.find_index(list, &(&1["price"] == target_price))
+
   #Return lowest price match order
-  defp find_match_exchange_by_price(list, target_price, "buy") do
-    Enum.find_index(list, &(&1["price"] <= target_price))
-  end
+  defp find_match_exchange_by_price(list, target_price, "buy"),
+    do: Enum.find_index(list, &(&1["price"] <= target_price))
+
   #Return highest price match order
-  defp find_match_exchange_by_price(list, target_price, "sell") do
-    Enum.find_index(list, &(&1["price"] >= target_price))
-  end
+  defp find_match_exchange_by_price(list, target_price, "sell"),
+    do: Enum.find_index(list, &(&1["price"] >= target_price))
 
   #Return sorted list by price base on order type,
   #For "buy" will sort descending

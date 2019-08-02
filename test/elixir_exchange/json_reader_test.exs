@@ -1,7 +1,6 @@
 defmodule JSONReaderTest do
   use ExUnit.Case
   import ElixirExchange.JSONReader
-  import Mock
 
   doctest ElixirExchange.JSONReader
 
@@ -9,5 +8,10 @@ defmodule JSONReaderTest do
     json = get_json(Path.join("#{:code.priv_dir(:elixir_exchange)}","input_1.json"))
 
     assert json != nil
+  end
+
+  test "Should return error when read none exist file" do
+    {result, _} = get_json("non exist file.json")
+    assert result == :error
   end
 end

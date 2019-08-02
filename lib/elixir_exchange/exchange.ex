@@ -29,12 +29,12 @@ defmodule ElixirExchange.Exchange do
 
   #Initial order book with Map of "buy" and "sell"
   #Then loop throught all orders
-  defp loop_orders(orders), do: loop_orders(orders, %{"buy"=> [] ,"sell"=> []})
+  def loop_orders(orders), do: loop_orders(orders, %{"buy"=> [] ,"sell"=> []})
 
   #Recursive case,
   #Seperate head and tail part of the order list
   #Put price and volume of head's order into order book map follow the order type.
-  defp loop_orders([head | tail], order_book) do
+  def loop_orders([head | tail], order_book) do
     #seperate command and order data
     order_type = head["command"]
     order = %{ "price" => head["price"] , "volume" => head["amount"]}
@@ -49,7 +49,7 @@ defmodule ElixirExchange.Exchange do
   end
 
   #Base case, will return order book when no orders left
-  defp loop_orders([] , order_book) ,do: order_book
+  def loop_orders([] , order_book) ,do: order_book
 
   #Check is order match anything in order book
   #then, Return tuple indicate matching status
@@ -91,11 +91,12 @@ defmodule ElixirExchange.Exchange do
     opposite_order_type = get_opposite_order_type(order_type)
     opposite_order_list = get_opposite_order_list(order_book, order_type)
     current_order_amount = get_order_volume_by_index(opposite_order_list, index)
+    current_order_price = get_order_price_by_index(opposite_order_list, index)
     remaining_order_amount = float_sub(current_order_amount, new_order["volume"] )
     case remaining_order_amount do
-      #remaining amount in order book
+      #remaining amount in order book, should update amount with the current price in order book
       value when value > 0 ->
-        updated_list = List.replace_at(opposite_order_list, index, %{ "price"=> new_order["price"] ,"volume"=> value })
+        updated_list = List.replace_at(opposite_order_list, index, %{ "price"=> current_order_price ,"volume"=> value })
         {:ok, Map.put(order_book, opposite_order_type, updated_list)}
       #remaining amount in order,update new order book and return partial order
       value when value < 0 ->
@@ -120,6 +121,11 @@ defmodule ElixirExchange.Exchange do
   #Return return volume of order from order list by index
   defp get_order_volume_by_index(list, index) do
     Enum.at(list,index)["volume"]
+  end
+
+  #Return return volume of order from order list by index
+  defp get_order_price_by_index(list, index) do
+    Enum.at(list,index)["price"]
   end
 
   #Return opposite order type from the input

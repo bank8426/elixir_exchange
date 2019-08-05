@@ -80,8 +80,9 @@ defmodule ElixirExchange.Exchange do
   #Update order book follow match result
   #If not found, concat order data to their own list
   defp update_order_book({:nomatch} ,order_book ,order_type ,new_order) do
-    concat_list = order_book[order_type] ++ [new_order]
-    updated_list = sort_by_order_type(concat_list , order_type)
+    updated_list = order_book[order_type]
+                  |>add_order(new_order)
+                  |>sort_by_order_type(order_type)
     updated_order_book = Map.put(order_book, order_type, updated_list)
 
     {:ok, updated_order_book}
@@ -132,6 +133,9 @@ defmodule ElixirExchange.Exchange do
     end
   end
 
+  #Return return list with added new order
+  defp add_order(list, order), do: list ++ [order]
+
   #Return opposite order list
   defp get_opposite_order_list(order_book, order_type) do
     opposite_order_type = get_opposite_order_type(order_type)
@@ -150,15 +154,15 @@ defmodule ElixirExchange.Exchange do
   defp get_opposite_order_type("sell"), do: "buy"
 
   #Return index of order in list with the same price
-  defp find_order_by_price(list, target_price),
+  def find_order_by_price(list, target_price),
     do: Enum.find_index(list, &(&1["price"] == target_price))
 
   #Return lowest price match order
-  defp find_match_exchange_by_price(list, target_price, "buy"),
+  def find_match_exchange_by_price(list, target_price, "buy"),
     do: Enum.find_index(list, &(&1["price"] <= target_price))
 
   #Return highest price match order
-  defp find_match_exchange_by_price(list, target_price, "sell"),
+  def find_match_exchange_by_price(list, target_price, "sell"),
     do: Enum.find_index(list, &(&1["price"] >= target_price))
 
   #Return sorted list by price base on order type,

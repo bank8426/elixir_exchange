@@ -63,8 +63,8 @@ defmodule ElixirExchange.Helper do
     0.00000003
   """
   def float_add(value1 , value2) do
-    decimal_value1 = Decimal.from_float(value1)
-    decimal_value2 = Decimal.from_float(value2)
+    decimal_value1 = Decimal.from_float(value1 / 1)
+    decimal_value2 = Decimal.from_float(value2 / 1)
     Decimal.add(decimal_value1, decimal_value2)
     |> Decimal.to_float()
   end
@@ -79,8 +79,8 @@ defmodule ElixirExchange.Helper do
     0.00000001
   """
   def float_sub(value1 , value2) do
-    decimal_value1 = Decimal.from_float(value1)
-    decimal_value2 = Decimal.from_float(value2)
+    decimal_value1 = Decimal.from_float(value1 / 1)
+    decimal_value2 = Decimal.from_float(value2 / 1)
     Decimal.sub(decimal_value1, decimal_value2)
     |> Decimal.to_float()
   end

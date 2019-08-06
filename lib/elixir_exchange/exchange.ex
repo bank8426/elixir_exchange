@@ -9,7 +9,7 @@ defmodule ElixirExchange.Exchange do
   import ElixirExchange.JSONWriter, only: [write_json_output: 1]
 
   @moduledoc """
-  Provides a function `exchange/1` to read input file and calculate order book results
+  Provides a function `process_orders_json/1` to read input file and calculate order book results
   """
 
   @doc """
@@ -18,10 +18,10 @@ defmodule ElixirExchange.Exchange do
   ## Parameters
     - file: String that represents the path to json file.
   ## Examples
-    iex> ElixirExchange.Exchange.exchange("priv/input_1.json")
+    iex> ElixirExchange.Exchange.process_orders_json("priv/input_1.json")
     :ok
   """
-  def exchange(file) do
+  def process_orders_json(file) do
     file
     |>get_json()
     |>get_orders()
